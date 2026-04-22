@@ -12,18 +12,14 @@ const User = mongoose.model(
             type: String,
             required: true
         },
-        password: {
-            type: String,
-            required: true
-        },
-        image: {
-            type: String,
-            required: true
-        },
         phone: {
             type: String,
             required: true
         },
+        password: {
+            type: String,
+            required: true
+        }
     },
         {
             timestamp: true
