@@ -1,62 +1,100 @@
+const createUserToken = require('../helpers/create-user-token')
 const User = require('../models/User')
 const bcrypt = require('bcrypt')
 
 module.exports = class UserController {
     static async register(req, res) {
+        res.json('Olá Get Pet')
+
         const { name, email, phone, password, confirmpassword } = req.body
 
-        if (!name) {
-            res.status(422).json({ message: 'Nome é obrigatório' })
+        if (!name)
+        {
+            res.status(422).json({ message: 'O nome é obrigatório'})
+            return
+        }
+        if (!email)
+        {
+            res.status(422).json({ message: 'O email é obrigatório'})
+            return
+        }
+        if (!phone)
+        {
+            res.status(422).json({ message: 'O telefone é obrigatório'})
+            return
+        }
+        if (!password)
+        {
+            res.status(422).json({ message: 'A senha é obrigatória'})
+            return
+        }
+        if (!confirmpassword)
+        {
+            res.status(422).json({ message: 'Você precisa confirmar sua senha'})
+            return
+        }
+        if (password !== confirmpassword)
+        {
+            res.status(422).json({ message: 'As senhas não coincidem'})
             return
         }
 
-        if (!email) {
-            res.status(422).json({ message: 'Email é obrigatório' })
+        const userExist = await User.findOneAndDelete({email:email})
+
+        if (userExist)
+        {
+            res.status(422).json({message: 'Este email já está em uso'})
             return
         }
 
-        if (!phone) {
-            res.status(422).json({ message: 'Telefone é obrigatório' })
-            return
-        }
-
-        if (!password) {
-            res.status(422).json({ message: 'Senha é obrigatória' })
-            return
-        }
-
-        if (!confirmpassword) {
-            res.status(422).json({ message: 'Confirmação de senha é obrigatória' })
-            return
-        }
-
-        if (password !== confirmpassword) {
-            res.status(422).json({ message: 'As senhas não coincidem' })
-            return
-        }
-
-        const userExists = await User.findOne({ email: email })
-
-        if (userExists) {
-            res.status(422).json({ message: 'O usuário já existe em nossos registros.' })
-            return
-        }
-
-        const salt = await bcrypt.genSalt(12)
-        const passwordHash = await bcrypt.hash(password, salt)
+        const salt = await bcrypt.getSalt(12)
+        const passwordhash = await bcrypt.hash(password, salt)
 
         const user = new User({
             name,
             email,
             phone,
-            password: passwordHash,
+            password: passwordhash,
         })
 
-        try {
-            const newUser = await user.save()
-            await createUserToken(newUser, req, res)
+        try
+        {
+            const newUser = await user.save
+            res.status(201).json({message: 'Usuário cadastrado com sucesso', newUser})
         } catch (error) {
-            res.status(503).json({ message: error })
+            res.status(201).json({message: error})
         }
+    }
+
+    static async login(req, res)
+    {
+        const {email, password} = req.body
+
+        const userExists = await User.findOne({email: email})
+
+        if (!password) {
+            res.status(401).json({
+                message: 'A senha é obrigatória'
+            })
+            return
+        }
+
+        if (!userExists) {
+        res.status(422).json({
+            message: 'não autorizado, sem registro'
+            })
+            return
+        }
+
+        const checkPassword = await bcrypt.compare(password, userExists.password)
+
+        if (!checkPassword) {
+            res.status(401).json({
+                message: 'não autorizado, sem registro'
+            })
+            return
+        }
+
+        await createUserToken(userExists, req, res)
     }
 }
