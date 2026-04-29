@@ -1,11 +1,10 @@
 const createUserToken = require('../helpers/create-user-token')
 const User = require('../models/User')
 const bcrypt = require('bcrypt')
+const getToken = require('../helpers/get-tokens')
 
 module.exports = class UserController {
     static async register(req, res) {
-        res.json('Olá Get Pet')
-
         const { name, email, phone, password, confirmpassword } = req.body
 
         if (!name)
@@ -47,7 +46,7 @@ module.exports = class UserController {
             return
         }
 
-        const salt = await bcrypt.getSalt(12)
+        const salt = await bcrypt.gentSalt(12)
         const passwordhash = await bcrypt.hash(password, salt)
 
         const user = new User({
@@ -59,10 +58,10 @@ module.exports = class UserController {
 
         try
         {
-            const newUser = await user.save
-            res.status(201).json({message: 'Usuário cadastrado com sucesso', newUser})
+            const newUser = await user.save()
+            await createUserToken(newUser, req, res)
         } catch (error) {
-            res.status(201).json({message: error})
+            res.status(503).json({message: error})
         }
     }
 
@@ -71,6 +70,11 @@ module.exports = class UserController {
         const {email, password} = req.body
 
         const userExists = await User.findOne({email: email})
+
+        if (!email) {
+            res.status(422).json({ message: 'Email é obrigatório' })
+            return
+        }
 
         if (!password) {
             res.status(401).json({
@@ -97,4 +101,38 @@ module.exports = class UserController {
 
         await createUserToken(userExists, req, res)
     }
+
+    static async checkUser(req, res) {
+        let currentUser
+        console.log(req.headers.authorization)
+ 
+        if (req.headers.authorization) {
+            const token = getToken(req)
+            const decodedToken = jwt.verify(token, 'fatec_turma6_a2026')
+            
+            currentUser = await User.findById(decoded.id)
+            currentUser.password = undefined
+        } else {
+            currentUser = null
+        }
+
+        res.status(200).send(currentUser)
+    }
+
+    static async getUserById(req, res) {
+        const id = req.params.id
+        const user = await User.findById(id)
+
+        if (!user) {
+            res.status(404).json({ message: 'Usário não encontrado'})
+            return
+        }
+
+        res.status(200).json
+    }
+
+    static async editUser(req, res) {
+        res.status(200).json({ message: 'Usuário atualizado com sucesso'})
+    }
 }
+
