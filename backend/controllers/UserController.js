@@ -136,7 +136,6 @@ module.exports = class UserController {
     }
 
     static async editUser(req, res) {
-        const id = req.params.id
 
         const token = getToken(req)
         const user = await getUserByToken(token)
@@ -144,50 +143,71 @@ module.exports = class UserController {
         const {name, email, phone, password, confirmpassword} = req.body
         let image = ''
 
+        if (req.file)
+        {
+            image = req.file.filename
+        }
+
         if (!name)
         {
             res.status(422).json({ message: 'O nome é obrigatório'})
             return
         }
+        user.name = name
+
         if (!email)
         {
             res.status(422).json({ message: 'O email é obrigatório'})
             return
         }
+        user.email = email
+
         if (!phone)
         {
             res.status(422).json({ message: 'O telefone é obrigatório'})
             return
         }
-        if (!password)
+        user.phone = phone
+
+        const userExists = await User.findOne({ email: email})
+        if (user.email !== email && userExists)
         {
-            res.status(422).json({ message: 'A senha é obrigatória'})
-            return
+            res.status(422).json({
+                message: 'Existe um problema de chave e-mail'
+            })
         }
-        if (!confirmpassword)
-        {
-            res.status(422).json({ message: 'Você precisa confirmar sua senha'})
-            return
-        }
+
+        
+
         if (password !== confirmpassword)
         {
             res.status(422).json({ message: 'As senhas não coincidem'})
             return
-        }
-
-        const userExist = await User.findOne({email: email})
-
-        if (userExist.email === email && userExist)
+        } else if (password === confirmpassword && password != null)
         {
-            res.status(422).json({message: 'Existe um problema de chave e-mail com edição.'})
-            return
+            const salt = await bcrypt.genSalt(12)
+            user.passwordhash = await bcrypt.hash(password, salt)
+
+            user.password = passwordhash
+
+            try
+            {
+                const updateUser = await User.findOneAndUpdate(
+                    {_id: user.id},
+                    {$set: user},
+                    {new: true}
+            )
+
+            res.status(202).json({
+                message: "dados aceitos e processados",
+                user: updateUser
+            })
+            } catch(err) {
+                res.status(500).json({ message: err})
+                return
+            }
         }
-
-        const salt = await bcrypt.getSalt(12)
-        const passwordhash = await bcrypt.hash(password, salt)
-
     }
 
 
 }
-
